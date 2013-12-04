@@ -9,7 +9,7 @@ Usage:
 
 1. Create feature branch
 2. Make some commits
-3. ```sh
+3. ```
 git smash master
 ```
 'master' is your parent branch here.
