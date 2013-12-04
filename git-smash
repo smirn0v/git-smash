@@ -1,0 +1,131 @@
+#!/usr/bin/env ruby
+
+# Alexander Smirnov alexander@smirn0v.ru
+
+require 'tempfile'
+
+class String
+
+    def colorize(color_code)
+      "\e[#{color_code}m#{self}\e[0m"
+    end
+
+    def bold
+      "\033[1m#{self}\033[0m"
+    end
+
+    def red
+      colorize(31)
+    end
+
+    def green
+      colorize(32)
+    end
+
+    def yellow
+      colorize(33)
+    end
+
+end
+
+class Commit
+    attr_accessor :sha
+    attr_accessor :message
+
+    def initialize(sha,message)
+        @sha = sha
+        @message = message
+    end
+
+    def to_s
+        return "#{sha.yellow.bold} #{message}"
+    end
+  
+end
+
+def execute(command)
+    `#{command}`
+    unless $?.exitstatus
+        puts "Failed '#{command}'".red
+        exit(1)
+    end
+end
+
+def get_branch_name
+    for branch_name in `git branch`.split("\n") do
+        if branch_name.start_with?("*")
+            return branch_name.split()[1].strip()
+        end
+    end
+    return nil 
+end
+
+def form_commits_list(parent_branch)
+    oneliners = `git log --oneline HEAD --not #{parent_branch}`.split("\n")
+    commits = [] 
+    oneliners.each { |commit_line| 
+        (sha,short_message) = commit_line.split(" ",2)
+        message = `git log --format=%B -n 1 #{sha}`.strip()
+        commits.push(Commit.new(sha,message))
+    }
+    return commits
+end
+
+def smash(commits,parent_branch)
+    change_id_regex = /Change-Id:.*/
+    change_ids = []
+    messages   = []
+
+    commits.each { |commit|
+       change_id_matches = commit.message.match(change_id_regex) || []
+       change_id = change_id_matches.to_a.last
+       messages.push(commit.message.sub(change_id_regex,'').strip())
+       change_ids.push(change_id) if change_id
+    } 
+    
+    master_change_id = change_ids.last
+
+    execute("git reset --soft #{parent_branch}")
+    execute("git add --all")
+    
+    final_message = messages.reverse.join("\n")
+    if master_change_id
+        final_message += "\n"+master_change_id
+    end
+
+    commit_file = Tempfile.new('smash')
+    commit_file.write(final_message)
+    commit_file.close
+    
+    execute("git commit -F \"#{commit_file.path}\"")
+end
+
+if ARGV.length != 1
+    puts "No parent branch name provided".red
+    puts "Usage: ".bold+"#{File.basename($0)} parent-branch" 
+    exit(1)
+end
+
+parent_branch  = ARGV[0]
+current_branch = get_branch_name()
+commits = form_commits_list(parent_branch)
+
+puts
+puts "Branch".bold+": "+current_branch.green
+puts "Changes:".bold
+puts
+puts commits
+puts
+puts "************"
+
+if commits.length <= 1
+    puts "Nothing to Smash!!! Bye".bold
+    puts
+    exit 0
+end 
+
+smash(commits,parent_branch)
+
+puts "Smashed!!!".green.bold
+puts `git log -1`
+puts
