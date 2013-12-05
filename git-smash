@@ -38,34 +38,26 @@ class Commit
     end
 
     def to_s
-        return "#{sha.yellow.bold} #{message.sub(/\s/," ")}"
+        return "#{sha.yellow.bold} #{message.gsub(/\s+/," ")}"
     end
   
 end
 
 def execute(command)
-    `#{command}`
+    result = `#{command}`
     unless $?.exitstatus
         puts "Failed '#{command}'".red
         exit(1)
     end
-end
-
-def get_branch_name
-    for branch_name in `git branch`.split("\n") do
-        if branch_name.start_with?("*")
-            return branch_name.split()[1].strip()
-        end
-    end
-    return nil 
+    return result
 end
 
 def form_commits_list(parent_branch)
-    oneliners = `git log --oneline HEAD --not #{parent_branch}`.split("\n")
+    oneliners = execute("git log --oneline HEAD --not #{parent_branch}").split("\n")
     commits = [] 
     oneliners.each { |commit_line| 
         (sha,short_message) = commit_line.split(" ",2)
-        message = `git log --format=%B -n 1 #{sha}`.strip()
+        message = execute("git log --format=%B -n 1 #{sha}").strip()
         commits.push(Commit.new(sha,message))
     }
     return commits
@@ -107,16 +99,13 @@ if ARGV.length != 1
 end
 
 parent_branch  = ARGV[0]
-current_branch = get_branch_name()
 commits = form_commits_list(parent_branch)
 
 puts
-puts "Branch".bold+": "+current_branch.green
 puts "Changes:".bold
 puts
 puts commits
 puts
-puts "************"
 
 if commits.length <= 1
     puts "Nothing to Smash!!! Bye".bold
@@ -127,5 +116,4 @@ end
 smash(commits,parent_branch)
 
 puts "Smashed!!!".green.bold
-puts `git log -1`
 puts
