@@ -38,7 +38,7 @@ class Commit
     end
 
     def to_s
-        return "#{sha.yellow.bold} #{message}"
+        return "#{sha.yellow.bold} #{message.sub(/\s/," ")}"
     end
   
 end
