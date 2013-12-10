@@ -77,7 +77,11 @@ def smash(commits,parent_branch)
     
     master_change_id = change_ids.last
 
-    execute("git reset --soft #{parent_branch}")
+    merge_base_sha = execute("git merge-base HEAD #{parent_branch}")
+
+    puts "Merge base is #{merge_base_sha}"
+
+    execute("git reset --soft #{merge_base_sha}")
     execute("git add --all")
     
     final_message = messages.reverse.join("\n")
