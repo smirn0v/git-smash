@@ -1,7 +1,7 @@
 git-smash
 =========
 
-squashes feature branch in one commit preserving master Change-Id for gerrit
+squashes feature branch into one commit preserving master Change-Id for gerrit
 
 Put into $PATH (e.g. /usr/local/bin)
 
